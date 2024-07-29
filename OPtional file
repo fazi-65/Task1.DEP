@@ -1,0 +1,33 @@
+
+The error you're seeing, fatal error: json/json.h: No such file or directory, indicates that the compiler cannot find the json/json.h header file. This typically means that the JSON library (likely jsoncpp) is either not installed or not properly referenced in your project's include path.
+
+Here's how you can resolve this issue:
+
+1. Install jsoncpp
+Depending on your system, you can install jsoncpp in different ways:
+
+On Ubuntu/Debian:
+bash
+Copy code
+sudo apt-get update
+sudo apt-get install libjsoncpp-dev
+On macOS (using Homebrew):
+bash
+Copy code
+brew install jsoncpp
+On Windows:
+You can download the jsoncpp library and follow the installation instructions provided in the repository.
+
+2. Ensure Correct Include Path
+When compiling your code, make sure the compiler knows where to find the jsoncpp headers and library files. You can usually do this by specifying the include directory and library directory explicitly.
+
+Using g++ (GNU Compiler):
+If you are using g++ to compile, you can specify the include directory and library directory as follows:
+
+bash
+Copy code
+g++ -o my_program my_program.cpp -I/path/to/jsoncpp/include -L/path/to/jsoncpp/lib -ljsoncpp
+Replace /path/to/jsoncpp/include with the path where the jsoncpp headers are located and /path/to/jsoncpp/lib with the path where the jsoncpp library files are located.
+
+3. Verify Header File Location
+Ensure that json/json.h actually exists in your jsoncpp installation. If it does not, there might be an issue with the installation process, or you may need to download and build jsoncpp manually from the source.
