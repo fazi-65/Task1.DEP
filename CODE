@@ -1,0 +1,230 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <curl/curl.h>
+#include <json/json.h>
+
+
+size_t writeCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
+
+
+class Location {
+public:
+    std::string name;
+    double latitude;
+    double longitude;
+
+    Location(std::string name, double latitude, double longitude) 
+        : name(name), latitude(latitude), longitude(longitude) {}
+
+    void addLocation() {
+        // Add location to a database or a vector
+        locations.push_back(*this);
+    }
+
+    void removeLocation() {
+        // Remove location from a database or a vector
+        for (auto it = locations.begin(); it != locations.end(); ++it) {
+            if (it->name == name) {
+                locations.erase(it);
+                break;
+            }
+        }
+    }
+
+    static void listLocations() {
+        // List all locations
+        for (const auto& location : locations) {
+            std::cout << "Name: " << location.name << ", Latitude: " << location.latitude << ", Longitude: " << location.longitude << std::endl;
+        }
+    }
+
+private:
+    static std::vector<Location> locations;
+};
+
+std::vector<Location> Location::locations;
+
+// WeatherVariable class
+class WeatherVariable {
+public:
+    std::string name;
+    double value;
+
+    WeatherVariable(std::string name, double value) 
+        : name(name), value(value) {}
+
+    void defineVariable() {
+        variables.push_back(*this);
+    }
+
+    static void manageVariables() {
+        // Manage the weather variables
+        for (const auto& variable : variables) {
+            std::cout << "Name: " << variable.name << ", Value: " << variable.value << std::endl;
+        }
+    }
+
+private:
+    static std::vector<WeatherVariable> variables;
+};
+
+std::vector<WeatherVariable> WeatherVariable::variables;
+
+// WeatherForecastingSystem class
+class WeatherForecastingSystem {
+public:
+    std::string apiKey;
+    std::string baseUrl;
+
+    WeatherForecastingSystem(std::string apiKey, std::string baseUrl) 
+        : apiKey(apiKey), baseUrl(baseUrl) {}
+
+    std::string fetchWeatherForecast(const Location& location) {
+        // Fetch weather forecast data from the API
+        CURL* curl;
+        CURLcode res;
+        std::string readBuffer;
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+        if(curl) {
+            std::string url = baseUrl + "/forecast?latitude=" + std::to_string(location.latitude) + "&longitude=" + std::to_string(location.longitude) + "&appid=" + apiKey;
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+            res = curl_easy_perform(curl);
+            if(res != CURLE_OK) {
+                std::cerr << "cURL error: " << curl_easy_strerror(res) << std::endl;
+            }
+            curl_easy_cleanup(curl);
+        }
+        curl_global_cleanup();
+
+        return readBuffer;
+    }
+
+    void displayWeatherForecast(const std::string& data) {
+        // Display the weather forecast data
+        Json::Value jsonData;
+        Json::CharReaderBuilder jsonReader;
+
+        std::istringstream s(data);
+        std::string errs;
+        if (Json::parseFromStream(jsonReader, s, &jsonData, &errs)) {
+            std::cout << "Weather Forecast:" << std::endl;
+            for (const auto& forecast : jsonData["hourly"]) {
+                std::cout << "Time: " << forecast["dt"].asString() << ", Temperature: " << forecast["temp"].asDouble() << ", Wind Speed: " << forecast["wind_speed"].asDouble() << std::endl;
+            }
+        } else {
+            std::cerr << "Error parsing JSON data: " << errs << std::endl;
+        }
+    }
+};
+
+// HistoricalWeatherSystem class
+class HistoricalWeatherSystem {
+public:
+    std::string apiKey;
+    std::string baseUrl;
+
+    HistoricalWeatherSystem(std::string apiKey, std::string baseUrl) 
+        : apiKey(apiKey), baseUrl(baseUrl) {}
+
+    std::string fetchHistoricalWeather(const Location& location, const std::string& date) {
+        // Fetch historical weather data from the API
+        CURL* curl;
+        CURLcode res;
+        std::string readBuffer;
+
+        curl_global_init(CURL_GLOBAL_DEFAULT);
+        curl = curl_easy_init();
+        if(curl) {
+            std::string url = baseUrl + "/historical?latitude=" + std::to_string(location.latitude) + "&longitude=" + std::to_string(location.longitude) + "&date=" + date + "&appid=" + apiKey;
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+            res = curl_easy_perform(curl);
+           if(res != CURLE_OK) {
+                std::cerr << "cURL error: " << curl_easy_strerror(res) << std::endl;
+            }
+            curl_easy_cleanup(curl);
+        }
+        curl_global_cleanup();
+
+        return readBuffer;
+    }
+
+    void displayHistoricalWeather(const std::string& data) {
+        // Display the historical weather data
+        Json::Value jsonData;
+        Json::CharReaderBuilder jsonReader;
+
+        std::istringstream s(data);
+        std::string errs;
+        if (Json::parseFromStream(jsonReader, s, &jsonData, &errs)) {
+            std::cout << "Historical Weather:" << std::endl;
+            for (const auto& historical : jsonData["historical"]) {
+                std::cout << "Date: " << historical["date"].asString() << ", Temperature: " << historical["temp"].asDouble() << ", Wind Speed: " << historical["wind_speed"].asDouble() << std::endl;
+            }
+        } else {
+            std::cerr << "Error parsing JSON data: " << errs << std::endl;
+        }
+    }
+};
+
+// Export results to CSV and JSON formats
+void exportResults(const std::string& data, const std::string& format) {
+    if (format == "csv") {
+        // Export to CSV format
+        std::ofstream file("weather_data.csv");
+        if (file.is_open()) {
+            file << "Time,Temperature,Wind Speed\n";
+            Json::Value jsonData;
+            Json::CharReaderBuilder jsonReader;
+
+            std::istringstream s(data);
+            std::string errs;
+            if (Json::parseFromStream(jsonReader, s, &jsonData, &errs)) {
+                for (const auto& forecast : jsonData["hourly"]) {
+                    file << forecast["dt"].asString() << "," << forecast["temp"].asDouble() << "," << forecast["wind_speed"].asDouble() << "\n";
+                }
+            }
+            file.close();
+        } else {
+            std::cerr << "Unable to open file" << std::endl;
+        }
+    } else if (format == "json") {
+        // Export to JSON format
+        std::ofstream file("weather_data.json");
+        if (file.is_open()) {
+            file << data;
+            file.close();
+        } else {
+            std::cerr << "Unable to open file" << std::endl;
+        }
+    }
+}
+
+int main() {
+ 
+    Location location("New York", 40.7128, -74.0060);
+    WeatherForecastingSystem weatherForecastingSystem("YOUR_API_KEY", "https://api.open-meteo.com/v1");
+    std::string data = weatherForecastingSystem.fetchWeatherForecast(location);
+    weatherForecastingSystem.displayWeatherForecast(data);
+    HistoricalWeatherSystem historicalWeatherSystem("YOUR_API_KEY", "https://api.open-meteo.com/v1");
+
+
+    data = historicalWeatherSystem.fetchHistoricalWeather(location, "2022-07-29");
+    historicalWeatherSystem.displayHistoricalWeather(data);
+
+  
+    exportResults(data, "csv");
+    exportResults(data, "json");
+
+    return 0;
+}
